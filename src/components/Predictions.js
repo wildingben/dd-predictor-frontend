@@ -1,7 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { API } from '../App';
 
-const FDKEY = '642390403d9549ebbeb29c158f77dfcd';
 const RESULT_LABELS = { H: 'Home Win', D: 'Draw', A: 'Away Win' };
 
 function FormDots({ str }) {
@@ -33,7 +32,7 @@ function FixtureCard({ fixture, onClick }) {
   return (
     <div className="card" style={{ marginBottom: '12px' }}>
       <div onClick={() => setExpanded(e => !e)} style={{ cursor: 'pointer' }}>
-        <div style={S.matchDate}>{formatDate(fixture.match_date)} · {fixture.match_time || ''} UTC</div>
+        <div style={S.matchDate}>{formatDate(fixture.match_date)}</div>
 
         <div style={S.teamsRow}>
           <span style={S.team} onClick={e => { e.stopPropagation(); onClick(fixture.home_team); }}>
@@ -126,13 +125,12 @@ function FixtureCard({ fixture, onClick }) {
           {fixture.actual && (
             <div style={{ ...S.detailSection, background: 'var(--bg3)', borderRadius: '8px', padding: '10px' }}>
               <div style={S.detailTitle}>Actual Result</div>
-              <div style={{ fontFamily: 'var(--font-mono)', fontSize: '18px', fontWeight: 600, color: 'var(--text)' }}>
+              <div style={{ fontFamily: 'var(--font-mono)', fontSize: '18px', fontWeight: 600 }}>
                 {fixture.actual.home_goals} – {fixture.actual.away_goals}
                 <span style={{ marginLeft: '8px', fontSize: '12px' }}>
                   {fixture.actual.result === p.predicted_result
                     ? <span style={{ color: 'var(--win)' }}>✓ Correct</span>
-                    : <span style={{ color: 'var(--loss)' }}>✗ Wrong</span>
-                  }
+                    : <span style={{ color: 'var(--loss)' }}>✗ Wrong</span>}
                 </span>
               </div>
             </div>
@@ -145,48 +143,39 @@ function FixtureCard({ fixture, onClick }) {
 
 export default function Predictions({ onTeamClick }) {
   const [gwInput,  setGwInput]  = useState('');
+  const [season,   setSeason]   = useState('2025-26');
+  const [seasons,  setSeasons]  = useState([]);
   const [data,     setData]     = useState(null);
   const [loading,  setLoading]  = useState(false);
   const [error,    setError]    = useState('');
 
-  const fetch_predictions = async (gameweek) => {
-    if (!gameweek) return;
-    setLoading(true);
-    setError('');
-    setData(null);
-    try {
-      // Step 1: fetch fixtures from football-data.org from the browser
-      let matches = [];
-      for (const season of [2024, 2025]) {
-        const fdRes = await fetch(
-          `https://api.football-data.org/v4/competitions/PL/matches?matchday=${gameweek}&season=${season}`,
-          { headers: { 'X-Auth-Token': FDKEY } }
-        );
-        if (fdRes.ok) {
-          const fdData = await fdRes.json();
-          matches = fdData.matches || [];
-          if (matches.length > 0) break;
+  // Load available seasons on mount
+  useEffect(() => {
+    fetch(`${API}/api/seasons`)
+      .then(r => r.json())
+      .then(d => {
+        if (d.seasons) {
+          setSeasons(d.seasons);
+          // Default to latest season
+          const latest = d.seasons[d.seasons.length - 1];
+          if (latest) setSeason(latest.season);
         }
-      }
+      })
+      .catch(() => {});
+  }, []);
 
-      if (matches.length === 0) {
-        throw new Error(`No fixtures found for Gameweek ${gameweek}. Check the number is correct (1-38).`);
-      }
-
-      // Step 2: POST fixtures to backend to run the prediction model
-      const res = await fetch(`${API}/api/predictions/${gameweek}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ matches }),
-      });
-
+  const load = async (e) => {
+    e.preventDefault();
+    const n = parseInt(gwInput);
+    if (!n || n < 1 || n > 38) return;
+    setLoading(true); setError(''); setData(null);
+    try {
+      const res = await fetch(`${API}/api/predictions/${n}?season=${encodeURIComponent(season)}`);
       if (!res.ok) {
         const err = await res.json();
-        throw new Error(err.error || `Error loading gameweek ${gameweek}`);
+        throw new Error(err.error || `GW${n} not found`);
       }
-
-      const json = await res.json();
-      setData(json);
+      setData(await res.json());
     } catch (e) {
       setError(e.message);
     } finally {
@@ -194,39 +183,50 @@ export default function Predictions({ onTeamClick }) {
     }
   };
 
-  const submit = (e) => {
-    e.preventDefault();
-    const n = parseInt(gwInput);
-    if (n >= 1 && n <= 38) fetch_predictions(n);
-  };
-
   return (
     <div>
       <div className="fade-up">
         <h1 className="page-title">PREDICTIONS</h1>
-        <p className="page-sub">Enter a gameweek to load fixtures and predictions</p>
+        <p className="page-sub">Select a season and gameweek</p>
       </div>
 
       <div className="card fade-up fade-up-1" style={{ marginBottom: '20px' }}>
-        <form onSubmit={submit} style={S.gwForm}>
-          <div style={S.gwInputWrap}>
-            <label style={S.gwLabel}>GAMEWEEK</label>
-            <input
-              style={S.gwInput}
-              type="number"
-              min="1" max="38"
-              placeholder="1 – 38"
-              value={gwInput}
-              onChange={e => setGwInput(e.target.value)}
-            />
+        <form onSubmit={load} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          {/* Season selector */}
+          <div>
+            <label style={S.gwLabel}>SEASON</label>
+            <select
+              style={{ ...S.gwInput, appearance: 'none' }}
+              value={season}
+              onChange={e => setSeason(e.target.value)}
+            >
+              {seasons.map(s => (
+                <option key={s.season} value={s.season}>{s.season} ({s.fixtures} fixtures)</option>
+              ))}
+              {seasons.length === 0 && <option value="2025-26">2025-26</option>}
+            </select>
           </div>
-          <button style={S.gwBtn} type="submit">Load ⚡</button>
+
+          {/* Gameweek input */}
+          <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-end' }}>
+            <div style={{ flex: 1 }}>
+              <label style={S.gwLabel}>GAMEWEEK</label>
+              <input
+                style={S.gwInput}
+                type="number" min="1" max="38"
+                placeholder="1 – 38"
+                value={gwInput}
+                onChange={e => setGwInput(e.target.value)}
+              />
+            </div>
+            <button style={S.gwBtn} type="submit">Load ⚡</button>
+          </div>
         </form>
 
         {data && (
           <div style={S.gwMeta}>
             <span style={{ color: 'var(--text2)', fontSize: '13px' }}>
-              GW{data.gameweek} · {data.fixtures?.length} fixtures
+              {data.season} · GW{data.gameweek} · {data.fixtures?.length} fixtures
             </span>
             <span className="accuracy-badge">⚡ {data.model_accuracy?.overall}% accurate</span>
           </div>
@@ -237,7 +237,7 @@ export default function Predictions({ onTeamClick }) {
         <div>
           <div className="spinner" />
           <p style={{ textAlign: 'center', color: 'var(--text2)', fontSize: '14px', marginTop: '8px' }}>
-            Running model… this takes ~30 seconds
+            Running model… ~30 seconds
           </p>
         </div>
       )}
@@ -248,7 +248,7 @@ export default function Predictions({ onTeamClick }) {
         <div>
           <div className="section-title">{data.fixtures?.length} Fixtures</div>
           {data.fixtures?.map((f, i) => (
-            <div key={f.fixture_id} className={`fade-up fade-up-${Math.min(i + 1, 4)}`}>
+            <div key={f.fixture_id} className={`fade-up fade-up-${Math.min(i+1,4)}`}>
               <FixtureCard fixture={f} onClick={onTeamClick} />
             </div>
           ))}
@@ -258,7 +258,7 @@ export default function Predictions({ onTeamClick }) {
       {!data && !loading && !error && (
         <div style={{ textAlign: 'center', padding: '60px 20px', color: 'var(--text3)' }}>
           <div style={{ fontSize: '48px', marginBottom: '12px' }}>⚽</div>
-          <p style={{ fontSize: '15px' }}>Enter a gameweek above to load predictions</p>
+          <p style={{ fontSize: '15px' }}>Select a season and gameweek above</p>
         </div>
       )}
     </div>
@@ -267,14 +267,13 @@ export default function Predictions({ onTeamClick }) {
 
 function formatDate(d) {
   if (!d) return '';
-  const dt = new Date(d);
-  return dt.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
+  return new Date(d).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
 }
 
 const S = {
   matchDate:   { fontSize: '11px', color: 'var(--text3)', marginBottom: '10px', fontFamily: 'var(--font-mono)' },
   teamsRow:    { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', marginBottom: '6px' },
-  team:        { fontSize: '14px', fontWeight: 600, flex: 1, cursor: 'pointer', color: 'var(--text)', transition: 'color 0.15s' },
+  team:        { fontSize: '14px', fontWeight: 600, flex: 1, cursor: 'pointer', color: 'var(--text)' },
   scoreBox:    { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', minWidth: '90px' },
   scorePred:   { fontFamily: 'var(--font-display)', fontSize: '24px', letterSpacing: '2px', color: 'var(--text)', lineHeight: 1 },
   probLabels:  { display: 'flex', justifyContent: 'space-between', fontSize: '12px', fontFamily: 'var(--font-mono)' },
@@ -299,8 +298,6 @@ const S = {
   cardStat:    { flex: 1, background: 'var(--bg3)', borderRadius: '8px', padding: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
   cardTeam:    { fontSize: '12px', color: 'var(--text2)' },
   cardVal:     { fontFamily: 'var(--font-mono)', fontWeight: 600 },
-  gwForm:      { display: 'flex', gap: '12px', alignItems: 'flex-end' },
-  gwInputWrap: { flex: 1 },
   gwLabel:     { display: 'block', fontSize: '10px', fontWeight: 600, letterSpacing: '2px', color: 'var(--text3)', marginBottom: '6px' },
   gwInput:     { width: '100%', background: 'var(--bg3)', border: '1px solid var(--border)', borderRadius: '10px', padding: '12px 14px', color: 'var(--text)', fontSize: '16px', fontFamily: 'var(--font-mono)', outline: 'none' },
   gwBtn:       { background: 'var(--accent)', color: '#0a0a0f', fontFamily: 'var(--font-display)', fontSize: '18px', letterSpacing: '1px', padding: '12px 20px', borderRadius: '10px', whiteSpace: 'nowrap' },
