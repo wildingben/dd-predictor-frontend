@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { API } from '../App';
 
+const FDKEY = '642390403d9549ebbeb29c158f77dfcd';
 const RESULT_LABELS = { H: 'Home Win', D: 'Draw', A: 'Away Win' };
 
 function FormDots({ str }) {
@@ -29,15 +30,11 @@ function FixtureCard({ fixture, onClick }) {
   const p = fixture.prediction;
   const resultClass = { H: 'home', D: 'draw', A: 'away' }[p.predicted_result];
 
-  const toggle = () => setExpanded(e => !e);
-
   return (
     <div className="card" style={{ marginBottom: '12px' }}>
-      {/* Main row */}
-      <div onClick={toggle} style={{ cursor: 'pointer' }}>
+      <div onClick={() => setExpanded(e => !e)} style={{ cursor: 'pointer' }}>
         <div style={S.matchDate}>{formatDate(fixture.match_date)} · {fixture.match_time || ''} UTC</div>
 
-        {/* Teams + score */}
         <div style={S.teamsRow}>
           <span style={S.team} onClick={e => { e.stopPropagation(); onClick(fixture.home_team); }}>
             {fixture.home_team}
@@ -51,7 +48,6 @@ function FixtureCard({ fixture, onClick }) {
           </span>
         </div>
 
-        {/* Probability bar */}
         <ProbBar home={p.prob_home_win} draw={p.prob_draw} away={p.prob_away_win} />
 
         <div style={S.probLabels}>
@@ -60,7 +56,6 @@ function FixtureCard({ fixture, onClick }) {
           <span style={S.probVal}>{p.prob_away_win}%</span>
         </div>
 
-        {/* Quick stats row */}
         <div style={S.quickStats}>
           <span className={`pill ${p.over_25 ? 'over' : 'under'}`}>
             {p.over_25 ? 'Over' : 'Under'} 2.5
@@ -71,12 +66,10 @@ function FixtureCard({ fixture, onClick }) {
         </div>
       </div>
 
-      {/* Expanded detail */}
       {expanded && (
         <div style={S.detail}>
           <div style={S.divider} />
 
-          {/* Form */}
           <div style={S.detailSection}>
             <div style={S.detailTitle}>Form (last 6)</div>
             <div style={S.formRow}>
@@ -89,7 +82,6 @@ function FixtureCard({ fixture, onClick }) {
             </div>
           </div>
 
-          {/* Likely scores */}
           <div style={S.detailSection}>
             <div style={S.detailTitle}>Most Likely Scores</div>
             <div style={S.scoresGrid}>
@@ -102,7 +94,6 @@ function FixtureCard({ fixture, onClick }) {
             </div>
           </div>
 
-          {/* H2H */}
           {fixture.head_to_head?.length > 0 && (
             <div style={S.detailSection}>
               <div style={S.detailTitle}>Head to Head</div>
@@ -118,7 +109,6 @@ function FixtureCard({ fixture, onClick }) {
             </div>
           )}
 
-          {/* Cards detail */}
           <div style={S.detailSection}>
             <div style={S.detailTitle}>Yellow Card Prediction</div>
             <div style={S.cardsRow}>
@@ -133,7 +123,6 @@ function FixtureCard({ fixture, onClick }) {
             </div>
           </div>
 
-          {/* Actual result if finished */}
           {fixture.actual && (
             <div style={{ ...S.detailSection, background: 'var(--bg3)', borderRadius: '8px', padding: '10px' }}>
               <div style={S.detailTitle}>Actual Result</div>
@@ -166,8 +155,36 @@ export default function Predictions({ onTeamClick }) {
     setError('');
     setData(null);
     try {
-      const res = await fetch(`${API}/api/predictions/${gameweek}`);
-      if (!res.ok) throw new Error(`Gameweek ${gameweek} not found`);
+      // Step 1: fetch fixtures from football-data.org from the browser
+      let matches = [];
+      for (const season of [2024, 2025]) {
+        const fdRes = await fetch(
+          `https://api.football-data.org/v4/competitions/PL/matches?matchday=${gameweek}&season=${season}`,
+          { headers: { 'X-Auth-Token': FDKEY } }
+        );
+        if (fdRes.ok) {
+          const fdData = await fdRes.json();
+          matches = fdData.matches || [];
+          if (matches.length > 0) break;
+        }
+      }
+
+      if (matches.length === 0) {
+        throw new Error(`No fixtures found for Gameweek ${gameweek}. Check the number is correct (1-38).`);
+      }
+
+      // Step 2: POST fixtures to backend to run the prediction model
+      const res = await fetch(`${API}/api/predictions/${gameweek}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ matches }),
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || `Error loading gameweek ${gameweek}`);
+      }
+
       const json = await res.json();
       setData(json);
     } catch (e) {
@@ -190,7 +207,6 @@ export default function Predictions({ onTeamClick }) {
         <p className="page-sub">Enter a gameweek to load fixtures and predictions</p>
       </div>
 
-      {/* Gameweek selector */}
       <div className="card fade-up fade-up-1" style={{ marginBottom: '20px' }}>
         <form onSubmit={submit} style={S.gwForm}>
           <div style={S.gwInputWrap}>
@@ -217,7 +233,6 @@ export default function Predictions({ onTeamClick }) {
         )}
       </div>
 
-      {/* Loading */}
       {loading && (
         <div>
           <div className="spinner" />
@@ -227,10 +242,8 @@ export default function Predictions({ onTeamClick }) {
         </div>
       )}
 
-      {/* Error */}
       {error && <div className="error-msg">⚠ {error}</div>}
 
-      {/* Fixtures */}
       {data && !loading && (
         <div>
           <div className="section-title">{data.fixtures?.length} Fixtures</div>
@@ -242,7 +255,6 @@ export default function Predictions({ onTeamClick }) {
         </div>
       )}
 
-      {/* Empty state */}
       {!data && !loading && !error && (
         <div style={{ textAlign: 'center', padding: '60px 20px', color: 'var(--text3)' }}>
           <div style={{ fontSize: '48px', marginBottom: '12px' }}>⚽</div>
