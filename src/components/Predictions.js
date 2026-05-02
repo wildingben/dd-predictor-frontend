@@ -170,7 +170,12 @@ export default function Predictions({ onTeamClick }) {
     if (!n || n < 1 || n > 38) return;
     setLoading(true); setError(''); setData(null);
     try {
-      const res = await fetch(`${API}/api/predictions/${n}?season=${encodeURIComponent(season)}`);
+      // First try historical data (played fixtures)
+      let res = await fetch(`${API}/api/predictions/${n}?season=${encodeURIComponent(season)}`);
+      // If not found in CSV, try upcoming fixtures endpoint
+      if (!res.ok) {
+        res = await fetch(`${API}/api/upcoming/${n}`);
+      }
       if (!res.ok) {
         const err = await res.json();
         throw new Error(err.error || `GW${n} not found`);
