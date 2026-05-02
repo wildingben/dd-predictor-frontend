@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { API } from '../App';
 
 const RESULT_LABELS = { H: 'Home Win', D: 'Draw', A: 'Away Win' };
@@ -155,7 +155,6 @@ function FixtureCard({ fixture, onClick }) {
 }
 
 export default function Predictions({ onTeamClick }) {
-  const [gw,       setGw]       = useState('');
   const [gwInput,  setGwInput]  = useState('');
   const [data,     setData]     = useState(null);
   const [loading,  setLoading]  = useState(false);
@@ -171,7 +170,6 @@ export default function Predictions({ onTeamClick }) {
       if (!res.ok) throw new Error(`Gameweek ${gameweek} not found`);
       const json = await res.json();
       setData(json);
-      setGw(gameweek);
     } catch (e) {
       setError(e.message);
     } finally {
