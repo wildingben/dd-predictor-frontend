@@ -4,6 +4,7 @@ import TeamPage from './components/TeamPage';
 import FormTable from './components/FormTable';
 import Results from './components/Results';
 import About from './components/About';
+import Betting from './components/Betting';
 import Login from './components/Login';
 import './App.css';
 
@@ -15,6 +16,7 @@ const NAV = [
   { id: 'predictions', label: 'Predictions', icon: '⚡' },
   { id: 'table',       label: 'Form',        icon: '📊' },
   { id: 'results',     label: 'Results',     icon: '✅' },
+  { id: 'betting',     label: 'Betting',     icon: '💰' },
   { id: 'about',       label: 'About',       icon: '🤖' },
 ];
 
@@ -73,6 +75,7 @@ export default function App() {
         {page === 'team'        && <TeamPage team={team} onBack={goBack} onTeamClick={goTeam} />}
         {page === 'table'       && <FormTable onTeamClick={goTeam} />}
         {page === 'results'     && <Results onTeamClick={goTeam} />}
+        {page === 'betting'     && <Betting onTeamClick={goTeam} />}
         {page === 'about'       && <About />}
       </main>
 
