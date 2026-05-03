@@ -1,13 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { API } from '../App';
 
 // ── HELPERS ──
-const fmt = (n, dec=1) => n === null || n === undefined ? '—' : Number(n).toFixed(dec);
-const pct = (n) => n === null || n === undefined ? '—' : `${(n*100).toFixed(1)}%`;
-const gbp = (n, stake=1) => {
-  const v = Number(n) * stake;
-  return `£${v >= 0 ? '+' : ''}${v.toFixed(2)}`;
-};
 
 const STRATEGY_EXPLANATION = [
   { icon: '🎯', label: 'Market', value: 'Away Win only' },
