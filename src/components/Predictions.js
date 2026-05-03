@@ -46,6 +46,7 @@ function FixtureCard({ fixture, onClick }) {
           <span style={S.probVal}>{p.prob_away_win}%</span>
         </div>
         <div style={S.quickStats}>
+          {fixture.derby && <span style={S.derby}>🔥 DERBY</span>}
           <span className={`pill ${p.over_25 ? 'over' : 'under'}`}>{p.over_25 ? 'Over' : 'Under'} 2.5</span>
           <span style={S.goalExp}>⚽ {p.expected_home_goals} – {p.expected_away_goals}</span>
           <span style={S.goalExp}>🟨 {fixture.cards?.pred_total_yellows}</span>
@@ -241,4 +242,5 @@ const S = {
   gwInput:    { width: '100%', background: 'var(--bg3)', border: '1px solid var(--border)', borderRadius: '10px', padding: '12px 14px', color: 'var(--text)', fontSize: '16px', fontFamily: 'var(--font-mono)', outline: 'none' },
   gwBtn:      { background: 'var(--accent)', color: '#0a0a0f', fontFamily: 'var(--font-display)', fontSize: '18px', letterSpacing: '1px', padding: '12px 20px', borderRadius: '10px', whiteSpace: 'nowrap' },
   gwMeta:     { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '12px', paddingTop: '12px', borderTop: '1px solid var(--border)' },
+  derby:      { fontSize: '11px', fontWeight: 700, color: '#ff6b00', background: 'rgba(255,107,0,0.15)', padding: '2px 8px', borderRadius: '99px', letterSpacing: '1px' },
 };
