@@ -425,3 +425,4 @@ const S = {
   overallBig:  { display:'block', fontFamily:'var(--font-display)', fontSize:'24px', color:'var(--text)', lineHeight:1, marginBottom:'4px' },
   overallLabel:{ display:'block', fontSize:'10px', color:'var(--text3)', textTransform:'uppercase', letterSpacing:'0.5px' },
 };
+
