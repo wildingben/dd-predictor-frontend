@@ -18,9 +18,9 @@ const SEASON_HISTORY = [
 ];
 
 function ValueBetCard({ bet, stake }) {
-  const potentialProfit = ((bet.odds - 1) * stake).toFixed(2);
+  const potentialProfit = ((bet.avg_odds - 1) * stake).toFixed(2);
   const potentialLoss   = stake.toFixed(2);
-  const edgePct         = (bet.edge * 100).toFixed(1);
+  const edgePct         = (bet.away_edge * 100).toFixed(1);
   const modelPct        = (bet.model_prob * 100).toFixed(1);
   const impliedPct      = (bet.implied_prob * 100).toFixed(1);
 
